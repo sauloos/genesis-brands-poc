@@ -20,7 +20,6 @@ public class Brand {
     private UUID id;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "brand_status")
     private BrandStatus status = BrandStatus.DRAFT;
 
     @JdbcTypeCode(SqlTypes.JSON)

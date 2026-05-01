@@ -25,7 +25,6 @@ public class ConversationSession {
     private Brand brand;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "session_status")
     private SessionStatus status = SessionStatus.ACTIVE;
 
     @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, fetch = FetchType.EAGER)

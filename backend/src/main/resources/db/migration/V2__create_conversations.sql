@@ -1,12 +1,7 @@
-CREATE TYPE session_status AS ENUM (
-    'ACTIVE',
-    'COMPLETE'
-);
-
 CREATE TABLE conversation_sessions (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     brand_id    UUID NOT NULL REFERENCES brands(id),
-    status      session_status NOT NULL DEFAULT 'ACTIVE',
+    status      VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
