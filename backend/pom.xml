@@ -18,7 +18,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <spring-ai.version>1.0.0</spring-ai.version>
+        <spring-ai.version>1.1.5</spring-ai.version>
     </properties>
 
     <dependencyManagement>
@@ -89,15 +89,6 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
-    <repositories>
-        <repository>
-            <id>spring-releases</id>
-            <name>Spring Releases</name>
-            <url>https://repo.spring.io/release</url>
-            <snapshots><enabled>false</enabled></snapshots>
-        </repository>
-    </repositories>
 
     <build>
         <plugins>
