@@ -1,0 +1,61 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: genesis-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: genesis
+      POSTGRES_USER: genesis
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-genesis_dev}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U genesis"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: genesis-backend
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/genesis
+      SPRING_DATASOURCE_USERNAME: genesis
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-genesis_dev}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+
+  frontend:
+    build: ./frontend
+    container_name: genesis-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  # Optional: local LLM via Ollama (run with: docker compose --profile local-ai up)
+  ollama:
+    profiles: ["local-ai"]
+    image: ollama/ollama:latest
+    container_name: genesis-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  postgres_data:
+  ollama_data:

@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: genesis-demo
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/genesis}
+    username: ${SPRING_DATASOURCE_USERNAME:genesis}
+    password: ${SPRING_DATASOURCE_PASSWORD:genesis_dev}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  ai:
+    openai:
+      api-key: ${AI_API_KEY:placeholder}
+      base-url: ${AI_BASE_URL:https://api.openai.com}
+      chat:
+        options:
+          model: ${AI_CHAT_MODEL:gpt-4o}
+          temperature: 0.7
+      image:
+        options:
+          model: ${AI_IMAGE_MODEL:dall-e-3}
+          size: 1024x1024
+          quality: standard
+          n: 1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.genesisbrands: DEBUG
+    org.springframework.ai: INFO
