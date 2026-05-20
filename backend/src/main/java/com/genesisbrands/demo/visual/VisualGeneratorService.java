@@ -12,6 +12,8 @@ import org.springframework.ai.image.ImagePrompt;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 
 @Slf4j
@@ -41,6 +43,11 @@ public class VisualGeneratorService {
 
             Always recommend exactly 5 colours. Use only Google Fonts (free to use).
             Choose fonts and colours that are cohesive and reflect the brand personality.
+
+            IMPORTANT: If the brand has existing colours (existingColors field), use them as inspiration:
+            - You may incorporate 1-2 of the existing colours if they suit the brand
+            - Or evolve them into a more refined palette
+            - Explain how the new palette relates to or improves upon their current colours
             """;
 
     private final ChatClient.Builder chatClientBuilder;
@@ -86,31 +93,90 @@ public class VisualGeneratorService {
     }
 
     private void generateLogo(BrandDNA dna) {
-        if (imageModel == null) {
-            log.info("No image model configured — skipping logo generation");
-            dna.setLogoImageUrl("https://placehold.co/512x512/1a1a2e/ffffff?text=Logo");
-            return;
+        if (imageModel != null) {
+            String prompt = buildLogoPrompt(dna);
+            try {
+                var response = imageModel.call(new ImagePrompt(prompt));
+                String url = response.getResult().getOutput().getUrl();
+                dna.setLogoImageUrl(url);
+                return;
+            } catch (Exception e) {
+                log.warn("Image model failed, falling back to SVG logo: {}", e.getMessage());
+            }
+        }
+        generateSvgLogo(dna);
+    }
+
+    private void generateSvgLogo(BrandDNA dna) {
+        String primaryColor = (dna.getColourPalette() != null && !dna.getColourPalette().isEmpty())
+                ? dna.getColourPalette().get(0).getHex()
+                : "#1a1a2e";
+        String accentColor = (dna.getColourPalette() != null && dna.getColourPalette().size() > 2)
+                ? dna.getColourPalette().get(2).getHex()
+                : "#ffffff";
+
+        String svgPrompt = String.format("""
+                Create a minimal SVG logo mark for this brand:
+                Business: %s
+                Personality: %s
+                Primary colour: %s
+                Accent colour: %s
+
+                Rules:
+                - Return ONLY valid SVG code, no explanation or markdown fences
+                - Use viewBox="0 0 100 100" with no width/height attributes
+                - Minimal geometric shapes (circles, triangles, lines, arcs)
+                - Use the provided colours
+                - No text or letters
+                - Keep it under 20 SVG elements
+                """,
+                dna.getBusinessDescription(),
+                dna.getPersonality() != null ? dna.getPersonality() : "professional",
+                primaryColor,
+                accentColor
+        );
+
+        try {
+            String svg = chatClientBuilder.build()
+                    .prompt()
+                    .user(svgPrompt)
+                    .call()
+                    .content();
+
+            if (svg != null && svg.contains("<svg")) {
+                int start = svg.indexOf("<svg");
+                int end = svg.lastIndexOf("</svg>") + 6;
+                if (end > start) {
+                    svg = svg.substring(start, end);
+                    String dataUrl = "data:image/svg+xml;base64," +
+                            Base64.getEncoder().encodeToString(svg.getBytes(StandardCharsets.UTF_8));
+                    dna.setLogoImageUrl(dataUrl);
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            log.error("SVG logo generation failed", e);
         }
 
-        String prompt = buildLogoPrompt(dna);
-        try {
-            var response = imageModel.call(new ImagePrompt(prompt));
-            String url = response.getResult().getOutput().getUrl();
-            dna.setLogoImageUrl(url);
-        } catch (Exception e) {
-            log.error("Logo image generation failed", e);
-            dna.setLogoImageUrl("https://placehold.co/512x512/1a1a2e/ffffff?text=Logo");
-        }
+        dna.setLogoImageUrl("https://placehold.co/512x512/1a1a2e/ffffff?text=Logo");
     }
 
     private String buildLogoPrompt(BrandDNA dna) {
-        return String.format(
+        String basePrompt = String.format(
                 "A minimal, modern brand logo concept. Business: %s. " +
                 "Personality: %s. Style: clean, geometric, professional. " +
                 "White background, no text or words, single mark only.",
                 dna.getBusinessDescription(),
                 dna.getPersonality()
         );
+
+        // Add color context if we have existing brand colors
+        if (dna.getExistingColors() != null && !dna.getExistingColors().isEmpty()) {
+            String primaryColor = dna.getExistingColors().get(0);
+            basePrompt += " Use color scheme inspired by " + primaryColor + ".";
+        }
+
+        return basePrompt;
     }
 
     private String toJson(BrandDNA dna) {

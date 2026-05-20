@@ -40,7 +40,7 @@ export default function GeneratingPage() {
         const status = await api.getBrandStatus(brandId!)
         if (status.status === 'READY') {
           clearInterval(poll)
-          navigate(`/brand/${brandId}`)
+          navigate(`/brand/${brandId}/output`)
         } else if (status.status === 'FAILED') {
           clearInterval(poll)
           navigate('/', { state: { error: status.error } })

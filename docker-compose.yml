@@ -32,7 +32,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -56,6 +56,29 @@ services:
     volumes:
       - ollama_data:/root/.ollama
 
+  # Optional: image generation via LocalAI + Stable Diffusion
+  # Requires a machine with an NVIDIA GPU. NOT supported on Mac Apple Silicon via Docker.
+  # On Mac: logo generation uses the LLM to generate SVG (no extra service needed).
+  # On Linux with NVIDIA GPU:
+  #   1. Use image: localai/localai:latest-gpu-nvidia-cuda-12
+  #   2. Add: deploy: { resources: { reservations: { devices: [{ capabilities: [gpu] }] } } }
+  #   3. Set in .env: IMAGE_MODEL_PROVIDER=openai, IMAGE_BASE_URL=http://localai:8080/v1, IMAGE_MODEL=sd-1.5-ggml
+  #   4. Run: docker compose --profile local-images up
+  localai:
+    profiles: ["local-images"]
+    image: localai/localai:latest-gpu-nvidia-cuda-12
+    container_name: genesis-localai
+    ports:
+      - "8081:8080"
+    environment:
+      THREADS: "4"
+      MODELS_PATH: /models
+      # Auto-install Stable Diffusion 1.5 GGUF on first run (~1.5GB download)
+      PRELOAD_MODELS: '[{"id": "sd-1.5-ggml"}]'
+    volumes:
+      - localai_models:/models
+
 volumes:
   postgres_data:
   ollama_data:
+  localai_models:

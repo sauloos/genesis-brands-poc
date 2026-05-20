@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.genesisbrands.demo.brand.Brand;
 import com.genesisbrands.demo.brand.BrandDNA;
 import com.genesisbrands.demo.brand.BrandRepository;
+import com.genesisbrands.demo.website.WebsiteAnalyzerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -12,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -33,7 +36,8 @@ public class ConversationService {
                 "personality": "2-3 brand personality keywords, e.g. bold, nurturing, technical (null if not yet known)",
                 "toneOfVoice": "how they communicate, e.g. conversational, authoritative, playful (null if not yet known)",
                 "differentiators": ["what makes them different from alternatives"],
-                "aspirations": "where they want to be in 3-5 years (null if not yet known)"
+                "aspirations": "where they want to be in 3-5 years (null if not yet known)",
+                "websiteUrl": "their existing website URL if mentioned (null if not mentioned or they don't have one)"
               },
               "isComplete": false,
               "nextQuestion": "Your next focused, open-ended question for the founder"
@@ -44,12 +48,20 @@ public class ConversationService {
             - Ask one question at a time. Be conversational, not clinical.
             - Typically 3-5 exchanges is enough. Do not drag it out.
             - When asking follow-ups, briefly acknowledge what they said first.
+            - Early in the conversation (usually 2nd or 3rd question), ask if they have an existing website you could look at.
+            - If they share a URL, acknowledge it and say you'll analyze their current brand presence.
             """;
+
+    private static final Pattern URL_PATTERN = Pattern.compile(
+            "(https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+|www\\.[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+|[\\w\\-]+\\.(com|co\\.uk|io|net|org|app)[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]*)",
+            Pattern.CASE_INSENSITIVE
+    );
 
     private final ChatClient.Builder chatClientBuilder;
     private final BrandRepository brandRepository;
     private final ConversationSessionRepository sessionRepository;
     private final ObjectMapper objectMapper;
+    private final WebsiteAnalyzerService websiteAnalyzerService;
 
     @Transactional
     public StartResponse start(UUID brandId) {
@@ -90,7 +102,7 @@ public class ConversationService {
         // Update BrandDNA signals on the brand
         Brand brand = session.getBrand();
         BrandDNA dna = brand.getBrandDna() != null ? brand.getBrandDna() : new BrandDNA();
-        applySignals(dna, llmResponse.extractedSignals());
+        applySignals(dna, llmResponse.extractedSignals(), answer);
         brand.setBrandDna(dna);
         brandRepository.save(brand);
 
@@ -138,12 +150,12 @@ public class ConversationService {
             return objectMapper.readValue(raw, LlmResponse.class);
         } catch (Exception e) {
             log.warn("Failed to parse LLM response as JSON, using fallback. Response: {}", raw);
-            return new LlmResponse(new ExtractedSignals(null, null, null, null, List.of(), null),
+            return new LlmResponse(new ExtractedSignals(null, null, null, null, List.of(), null, null),
                     false, "Can you tell me more about your target customers?");
         }
     }
 
-    private void applySignals(BrandDNA dna, ExtractedSignals signals) {
+    private void applySignals(BrandDNA dna, ExtractedSignals signals, String rawAnswer) {
         if (signals.businessDescription() != null) dna.setBusinessDescription(signals.businessDescription());
         if (signals.targetAudience() != null)      dna.setTargetAudience(signals.targetAudience());
         if (signals.personality() != null)         dna.setPersonality(signals.personality());
@@ -151,6 +163,44 @@ public class ConversationService {
         if (signals.differentiators() != null && !signals.differentiators().isEmpty())
             dna.setDifferentiators(signals.differentiators());
         if (signals.aspirations() != null)         dna.setAspirations(signals.aspirations());
+
+        // Check for website URL - either from LLM extraction or from raw answer
+        String websiteUrl = signals.websiteUrl();
+        if (websiteUrl == null || websiteUrl.isEmpty()) {
+            websiteUrl = extractUrlFromText(rawAnswer);
+        }
+
+        // Analyze website if URL found and not already analyzed
+        if (websiteUrl != null && !websiteUrl.isEmpty() && dna.getExistingWebsiteUrl() == null) {
+            log.info("Analyzing website: {}", websiteUrl);
+            dna.setExistingWebsiteUrl(websiteUrl);
+
+            WebsiteAnalyzerService.WebsiteAnalysis analysis = websiteAnalyzerService.analyze(websiteUrl);
+            if (analysis.isSuccess()) {
+                if (analysis.getLogoUrl() != null) {
+                    dna.setExistingLogoUrl(analysis.getLogoUrl());
+                    log.info("Found existing logo: {}", analysis.getLogoUrl());
+                }
+                if (analysis.getColors() != null && !analysis.getColors().isEmpty()) {
+                    dna.setExistingColors(analysis.getColors());
+                    log.info("Found existing colors: {}", analysis.getColors());
+                }
+                if (analysis.getMetaDescription() != null) {
+                    dna.setExistingMetaDescription(analysis.getMetaDescription());
+                }
+            } else {
+                log.warn("Failed to analyze website: {}", analysis.getError());
+            }
+        }
+    }
+
+    private String extractUrlFromText(String text) {
+        if (text == null) return null;
+        Matcher matcher = URL_PATTERN.matcher(text);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
     }
 
     // ── Internal DTOs (LLM JSON shape) ───────────────────────────────────────
@@ -163,7 +213,8 @@ public class ConversationService {
             String personality,
             String toneOfVoice,
             List<String> differentiators,
-            String aspirations
+            String aspirations,
+            String websiteUrl
     ) {}
 
     // ── Public response DTOs ──────────────────────────────────────────────────

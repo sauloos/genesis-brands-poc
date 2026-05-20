@@ -20,6 +20,10 @@ spring:
     locations: classpath:db/migration
 
   ai:
+    model:
+      # Set to "openai" to enable image generation (OpenAI or any OpenAI-compatible provider like LocalAI).
+      # Omit or set to anything else to disable — logo will use a placeholder.
+      image: ${IMAGE_MODEL_PROVIDER:none}
     openai:
       api-key: ${AI_API_KEY:placeholder}
       base-url: ${AI_BASE_URL:https://api.openai.com}
@@ -28,8 +32,12 @@ spring:
           model: ${AI_CHAT_MODEL:gpt-4o}
           temperature: 0.7
       image:
+        # Separate image provider: set IMAGE_BASE_URL to use a different endpoint for images
+        # (e.g., LocalAI for Stable Diffusion while using Groq for chat)
+        base-url: ${IMAGE_BASE_URL:${AI_BASE_URL:https://api.openai.com}}
+        api-key: ${IMAGE_API_KEY:${AI_API_KEY:placeholder}}
         options:
-          model: ${AI_IMAGE_MODEL:dall-e-3}
+          model: ${IMAGE_MODEL:dall-e-3}
           size: 1024x1024
           quality: standard
           n: 1

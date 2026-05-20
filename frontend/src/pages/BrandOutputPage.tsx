@@ -90,8 +90,15 @@ export default function BrandOutputPage() {
         <CopyBlock label="Tone of Voice" text={brand.toneGuide} />
       </section>
 
-      {/* Restart */}
-      <div className="flex justify-center pt-4">
+      {/* Actions */}
+      <div className="flex justify-center gap-4 pt-4">
+        <button
+          onClick={() => navigate(`/brand/${brandId}/book`)}
+          className="px-6 py-3 bg-indigo-600 text-white hover:bg-indigo-500
+                     rounded-xl text-sm transition-colors font-medium"
+        >
+          View Brand Book
+        </button>
         <button
           onClick={() => navigate('/')}
           className="px-6 py-3 border border-gray-700 text-gray-400 hover:text-white

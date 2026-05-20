@@ -25,6 +25,9 @@ public class CopyGeneratorService {
             }
 
             Make the copy distinctive and specific to this brand — avoid generic phrases like 'innovative solutions'.
+
+            If the brand has an existing website or meta description, use that as context to understand their current
+            positioning and either evolve it or maintain consistency as appropriate.
             """;
 
     private final ChatClient.Builder chatClientBuilder;

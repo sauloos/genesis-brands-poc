@@ -21,6 +21,12 @@ public class BrandDNA {
     private List<String> differentiators;
     private String aspirations;
 
+    // ── Existing brand (extracted from website) ──────────────────────────────
+    private String existingWebsiteUrl;
+    private String existingLogoUrl;
+    private List<String> existingColors;
+    private String existingMetaDescription;
+
     // ── Generated copy ────────────────────────────────────────────────────────
     private String tagline;
     private String missionStatement;
