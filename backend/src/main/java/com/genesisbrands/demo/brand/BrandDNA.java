@@ -27,6 +27,9 @@ public class BrandDNA {
     private List<String> existingColors;
     private String existingMetaDescription;
 
+    // ── Feedback for regeneration ─────────────────────────────────────────────
+    private String regenerationFeedback;
+
     // ── Generated copy ────────────────────────────────────────────────────────
     private String tagline;
     private String missionStatement;

@@ -50,8 +50,11 @@ export const api = {
   getBrandOutput: (id: string) =>
     req<BrandOutput>(`/brands/${id}/output`),
 
-  triggerGeneration: (id: string) =>
-    req<void>(`/brands/${id}/generate`, { method: 'POST' }),
+  triggerGeneration: (id: string, feedback?: string) =>
+    req<void>(`/brands/${id}/generate`, {
+      method: 'POST',
+      body: feedback ? JSON.stringify({ feedback }) : undefined,
+    }),
 
   // ── Conversation ─────────────────────────────────────────────────────────
 

@@ -41,10 +41,15 @@ public class BrandController {
 
     /** Trigger async brand generation. Returns 202 immediately. */
     @PostMapping("/{id}/generate")
-    public ResponseEntity<Void> generate(@PathVariable UUID id) {
-        brandService.triggerGeneration(id);
+    public ResponseEntity<Void> generate(
+            @PathVariable UUID id,
+            @RequestBody(required = false) GenerateRequest request) {
+        String feedback = (request != null) ? request.feedback() : null;
+        brandService.triggerGeneration(id, feedback);
         return ResponseEntity.accepted().build();
     }
+
+    record GenerateRequest(String feedback) {}
 
     private BrandResponse toResponse(Brand brand) {
         return new BrandResponse(brand.getId(), brand.getStatus(), brand.getCreatedAt());

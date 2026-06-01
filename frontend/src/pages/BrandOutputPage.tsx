@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, BrandOutput } from '../api/client'
 
+
+
 export default function BrandOutputPage() {
   const { brandId } = useParams<{ brandId: string }>()
   const navigate = useNavigate()
   const [brand, setBrand] = useState<BrandOutput | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState('')
 
   useEffect(() => {
     api.getBrandOutput(brandId!).then(setBrand).catch(() => setError('Failed to load brand output.'))
@@ -88,6 +91,31 @@ export default function BrandOutputPage() {
         <CopyBlock label="Brand Story" text={brand.brandStory} />
         <CopyBlock label="Elevator Pitch" text={brand.elevatorPitch} />
         <CopyBlock label="Tone of Voice" text={brand.toneGuide} />
+      </section>
+
+      {/* Feedback + regenerate */}
+      <section className="space-y-3 border border-gray-800 rounded-2xl p-6">
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest">
+          Not quite right?
+        </h2>
+        <textarea
+          value={feedback}
+          onChange={e => setFeedback(e.target.value)}
+          placeholder="Tell us what to change — e.g. 'make the tagline more playful' or 'use warmer colours'"
+          rows={3}
+          className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3
+                     text-gray-300 placeholder-gray-600 text-sm resize-none
+                     focus:outline-none focus:border-indigo-500 transition-colors"
+        />
+        <button
+          onClick={() => navigate(`/generating/${brandId}`, { state: { feedback } })}
+          disabled={!feedback.trim()}
+          className="px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-500
+                     disabled:opacity-40 disabled:cursor-not-allowed
+                     rounded-xl text-sm transition-colors font-medium"
+        >
+          Regenerate with feedback
+        </button>
       </section>
 
       {/* Actions */}

@@ -64,15 +64,21 @@ public class VisualGeneratorService {
     private void generateColoursAndTypography(BrandDNA dna) {
         String signalJson = toJson(dna);
 
+        String userMessage = "Brand signals:\n" + signalJson;
+        if (dna.getRegenerationFeedback() != null && !dna.getRegenerationFeedback().isBlank()) {
+            userMessage += "\n\nUser feedback on the previous version:\n" + dna.getRegenerationFeedback()
+                    + "\n\nPlease revise the colours and typography to address this feedback.";
+        }
+
         String raw = chatClientBuilder.build()
                 .prompt()
                 .system(VISUAL_SYSTEM_PROMPT)
-                .user("Brand signals:\n" + signalJson)
+                .user(userMessage)
                 .call()
                 .content();
 
         try {
-            JsonNode root = objectMapper.readTree(raw);
+            JsonNode root = objectMapper.readTree(stripFences(raw));
 
             List<BrandDNA.ColourSwatch> palette = objectMapper.convertValue(
                     root.get("colourPalette"),
@@ -124,7 +130,8 @@ public class VisualGeneratorService {
 
                 Rules:
                 - Return ONLY valid SVG code, no explanation or markdown fences
-                - Use viewBox="0 0 100 100" with no width/height attributes
+                - The opening tag MUST be: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                - No width/height attributes on the svg element
                 - Minimal geometric shapes (circles, triangles, lines, arcs)
                 - Use the provided colours
                 - No text or letters
@@ -148,6 +155,10 @@ public class VisualGeneratorService {
                 int end = svg.lastIndexOf("</svg>") + 6;
                 if (end > start) {
                     svg = svg.substring(start, end);
+                    // Ensure xmlns is present — required for <img> src rendering
+                    if (!svg.contains("xmlns=")) {
+                        svg = svg.replace("<svg ", "<svg xmlns=\"http://www.w3.org/2000/svg\" ");
+                    }
                     String dataUrl = "data:image/svg+xml;base64," +
                             Base64.getEncoder().encodeToString(svg.getBytes(StandardCharsets.UTF_8));
                     dna.setLogoImageUrl(dataUrl);
@@ -177,6 +188,17 @@ public class VisualGeneratorService {
         }
 
         return basePrompt;
+    }
+
+    private static String stripFences(String s) {
+        if (s == null) return null;
+        String t = s.strip();
+        if (t.startsWith("```")) {
+            t = t.replaceFirst("^```[a-zA-Z]*\\s*", "");
+            int end = t.lastIndexOf("```");
+            if (end >= 0) t = t.substring(0, end);
+        }
+        return t.strip();
     }
 
     private String toJson(BrandDNA dna) {

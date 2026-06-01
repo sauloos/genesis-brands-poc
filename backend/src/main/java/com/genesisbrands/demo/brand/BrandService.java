@@ -33,9 +33,14 @@ public class BrandService {
     }
 
     @Transactional
-    public void triggerGeneration(UUID brandId) {
+    public void triggerGeneration(UUID brandId, String feedback) {
         Brand brand = get(brandId);
         brand.setStatus(BrandStatus.GENERATING);
+        if (feedback != null && !feedback.isBlank()) {
+            brand.getBrandDna().setRegenerationFeedback(feedback.strip());
+        } else {
+            brand.getBrandDna().setRegenerationFeedback(null);
+        }
         brandRepository.save(brand);
         runGenerationAsync(brandId);
     }

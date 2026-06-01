@@ -36,15 +36,21 @@ public class CopyGeneratorService {
     public void generateCopy(BrandDNA dna) {
         String signalJson = toJson(dna);
 
+        String userMessage = "Brand signals:\n" + signalJson;
+        if (dna.getRegenerationFeedback() != null && !dna.getRegenerationFeedback().isBlank()) {
+            userMessage += "\n\nUser feedback on the previous version:\n" + dna.getRegenerationFeedback()
+                    + "\n\nPlease revise the copy to address this feedback.";
+        }
+
         String raw = chatClientBuilder.build()
                 .prompt()
                 .system(SYSTEM_PROMPT)
-                .user("Brand signals:\n" + signalJson)
+                .user(userMessage)
                 .call()
                 .content();
 
         try {
-            CopyOutput output = objectMapper.readValue(raw, CopyOutput.class);
+            CopyOutput output = objectMapper.readValue(stripFences(raw), CopyOutput.class);
             dna.setTagline(output.tagline());
             dna.setMissionStatement(output.missionStatement());
             dna.setBrandStory(output.brandStory());
@@ -54,6 +60,17 @@ public class CopyGeneratorService {
             log.error("Failed to parse copy generation response", e);
             throw new RuntimeException("Copy generation failed", e);
         }
+    }
+
+    private static String stripFences(String s) {
+        if (s == null) return null;
+        String t = s.strip();
+        if (t.startsWith("```")) {
+            t = t.replaceFirst("^```[a-zA-Z]*\\s*", "");
+            int end = t.lastIndexOf("```");
+            if (end >= 0) t = t.substring(0, end);
+        }
+        return t.strip();
     }
 
     private String toJson(BrandDNA dna) {

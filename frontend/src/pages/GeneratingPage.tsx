@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { api } from '../api/client'
 
 const STEPS = [
@@ -15,6 +15,8 @@ const STEPS = [
 export default function GeneratingPage() {
   const { brandId } = useParams<{ brandId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const feedback = (location.state as { feedback?: string } | null)?.feedback
   const [stepIndex, setStepIndex] = useState(0)
   const [triggered, setTriggered] = useState(false)
 
@@ -22,7 +24,7 @@ export default function GeneratingPage() {
   useEffect(() => {
     if (triggered) return
     setTriggered(true)
-    api.triggerGeneration(brandId!).catch(console.error)
+    api.triggerGeneration(brandId!, feedback).catch(console.error)
   }, [brandId, triggered])
 
   // Rotate through step labels for visual effect
